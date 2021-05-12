@@ -165,16 +165,6 @@ listener "tcp" {
   tls_disable = true
 }
 
-seal "transit" {
-  address            = "http://${tpl_vault_transit_addr}:8200"
-  token              = "root"
-  disable_renewal    = "false"
-
-  // Key configuration
-  key_name           = "unseal_key"
-  mount_path         = "transit/"
-}
-
 api_addr = "http://$${PUBLIC_IP}:8200"
 cluster_addr = "http://$${PRIVATE_IP}:8201"
 disable_mlock = true
@@ -266,34 +256,35 @@ sudo systemctl start vault
 echo "${address} ${name}" | sudo tee -a /etc/hosts
 %{ endfor ~}
 
-%{ if tpl_vault_node_name == "vault_2" }
-# vault_2 adds some test data to demonstrate that the cluster is connected to
-#   the same data.
-sleep 5
-logger "Initializing Vault and storing results for ubuntu user"
-vault operator init -recovery-shares 1 -recovery-threshold 1 -format=json > /tmp/key.json
-sudo chown ubuntu:ubuntu /tmp/key.json
+# Automatically intitialize and unseal Vault
+# %{ if tpl_vault_node_name == "vault_1" }
+# # vault_1 adds some test data to demonstrate that the cluster is connected to
+# #   the same data.
+# sleep 5
+# logger "Initializing Vault and storing results for ubuntu user"
+# vault operator init -recovery-shares 1 -recovery-threshold 1 -format=json > /tmp/key.json
+# sudo chown ubuntu:ubuntu /tmp/key.json
 
-logger "Saving root_token and recovery key to ubuntu user's home"
-VAULT_TOKEN=$(cat /tmp/key.json | jq -r ".root_token")
-echo $VAULT_TOKEN > /home/ubuntu/root_token
-sudo chown ubuntu:ubuntu /home/ubuntu/root_token
-echo $VAULT_TOKEN > /home/ubuntu/.vault-token
-sudo chown ubuntu:ubuntu /home/ubuntu/.vault-token
+# logger "Saving root_token and recovery key to ubuntu user's home"
+# VAULT_TOKEN=$(cat /tmp/key.json | jq -r ".root_token")
+# echo $VAULT_TOKEN > /home/ubuntu/root_token
+# sudo chown ubuntu:ubuntu /home/ubuntu/root_token
+# echo $VAULT_TOKEN > /home/ubuntu/.vault-token
+# sudo chown ubuntu:ubuntu /home/ubuntu/.vault-token
 
-echo $(cat /tmp/key.json | jq -r ".recovery_keys_b64[]") > /home/ubuntu/recovery_key
-sudo chown ubuntu:ubuntu /home/ubuntu/recovery_key
+# echo $(cat /tmp/key.json | jq -r ".recovery_keys_b64[]") > /home/ubuntu/recovery_key
+# sudo chown ubuntu:ubuntu /home/ubuntu/recovery_key
 
-logger "Setting VAULT_ADDR and VAULT_TOKEN"
-export VAULT_ADDR=http://127.0.0.1:8200
-export VAULT_TOKEN=$VAULT_TOKEN
+# logger "Setting VAULT_ADDR and VAULT_TOKEN"
+# export VAULT_ADDR=http://127.0.0.1:8200
+# export VAULT_TOKEN=$VAULT_TOKEN
 
-logger "Waiting for Vault to finish preparations (10s)"
-sleep 10
+# logger "Waiting for Vault to finish preparations (10s)"
+# sleep 10
 
-logger "Enabling kv-v2 secrets engine and inserting secret"
-vault secrets enable -path=kv kv-v2
-vault kv put kv/apikey webapp=ABB39KKPTWOR832JGNLS02
-%{ endif }
+# logger "Enabling kv-v2 secrets engine and inserting secret"
+# vault secrets enable -path=kv kv-v2
+# vault kv put kv/apikey webapp=ABB39KKPTWOR832JGNLS02
+# %{ endif }
 
 logger "Complete"
